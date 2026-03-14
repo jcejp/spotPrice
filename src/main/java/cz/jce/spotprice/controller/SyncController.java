@@ -5,6 +5,7 @@ import cz.jce.spotprice.service.ExchangeRateService;
 import cz.jce.spotprice.service.PriceIngestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,13 +36,13 @@ public class SyncController {
             return ResponseEntity.ok(result);
         } catch (ExchangeRateService.ExchangeRateFetchException e) {
             log.error("Manual sync failed — exchange rate unavailable: {}", e.getMessage());
-            return ResponseEntity.serviceUnavailable().body(
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
                     new SyncResultDto(SyncResultDto.Status.FAILED, 0, Instant.now(),
                             "Exchange rate service unavailable: " + e.getMessage())
             );
         } catch (RestClientException e) {
             log.error("Manual sync failed — aWATTar API unavailable: {}", e.getMessage());
-            return ResponseEntity.serviceUnavailable().body(
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(
                     new SyncResultDto(SyncResultDto.Status.FAILED, 0, Instant.now(),
                             "aWATTar API unavailable: " + e.getMessage())
             );

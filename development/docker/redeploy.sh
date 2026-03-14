@@ -9,7 +9,7 @@ pkill -f "spring-boot:run" 2>/dev/null && echo "    Application stopped." || ech
 
 echo "==> Building project (mvn clean install)..."
 cd "$PROJECT_ROOT"
-./mvnw clean install
+mvn clean install
 
 echo "==> Ensuring Docker services are up..."
 cd "$SCRIPT_DIR"
@@ -23,4 +23,4 @@ echo "    PostgreSQL is ready."
 
 echo "==> Starting application (dev profile)..."
 cd "$PROJECT_ROOT"
-./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -Dspring-boot.run.profiles=dev

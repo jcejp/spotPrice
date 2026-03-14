@@ -76,6 +76,17 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Explicitly limit H2 to test scope.
+             Spring Boot pulls H2 as a transitive dependency via spring-boot-autoconfigure.
+             Without this declaration H2 ends up on the runtime classpath, registers a JVM
+             shutdown hook (OnExitDatabaseCloser), and races with Tomcat's classloader
+             shutdown causing: NoClassDefFoundError: java/nio/channels/FileLock -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
