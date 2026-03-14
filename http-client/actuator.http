@@ -1,0 +1,7 @@
+### Health check – stav aplikace a DB připojení
+GET {{baseUrl}}/actuator/health
+
+###
+
+### Info o aplikaci
+GET {{baseUrl}}/actuator/info

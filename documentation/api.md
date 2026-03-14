@@ -1,6 +1,6 @@
 # REST API Reference
 
-Základní cesta: `/api/prices`
+Základní cesty: `/api/prices`, `/api/sync`
 
 Všechny odpovědi jsou v JSON formátu. Časová razítka jsou ve formátu ISO 8601 (UTC), např. `"2026-03-14T13:00:00Z"`. Číselné hodnoty jsou desetinná čísla s přesností 6 míst.
 
@@ -135,6 +135,52 @@ curl "http://localhost:8080/api/prices/history?startDate=2026-03-10"
 
 ---
 
+## POST /api/sync
+
+Vynutí okamžité stažení a uložení spotových cen z aWATTar API. Na rozdíl od plánované synchronizace **přeskočí kontrolu hash deduplication** – data jsou vždy stažena a zpracována bez ohledu na to, zda se od posledního běhu změnila.
+
+Typické použití:
+- ruční refresh po výpadku scheduleru
+- první naplnění databáze bez čekání na plánovaný běh
+- ověření, že API je dostupné a data jsou aktuální
+
+### Odpověď `200 OK` – synchronizace proběhla
+
+```json
+{
+  "status":           "SYNCED",
+  "recordsProcessed": 48,
+  "syncedAt":         "2026-03-14T13:05:22Z",
+  "message":          "Successfully synced 48 records"
+}
+```
+
+### Odpověď `503 Service Unavailable` – externí API nedostupné
+
+```json
+{
+  "status":           "FAILED",
+  "recordsProcessed": 0,
+  "syncedAt":         "2026-03-14T13:05:22Z",
+  "message":          "aWATTar API unavailable: ..."
+}
+```
+
+| Pole | Typ | Popis |
+|---|---|---|
+| `status` | `string` | `SYNCED` – data uložena, `FAILED` – chyba externího API |
+| `recordsProcessed` | `number` | Počet zpracovaných hodinových záznamů |
+| `syncedAt` | `string` (ISO 8601) | Čas provedení synchronizace (UTC) |
+| `message` | `string` | Lidsky čitelný popis výsledku nebo chyby |
+
+### Příklad
+
+```bash
+curl -X POST http://localhost:8080/api/sync
+```
+
+---
+
 ## Chybové odpovědi
 
 Všechny chybové odpovědi mají stejnou strukturu:
@@ -148,6 +194,7 @@ Všechny chybové odpovědi mají stejnou strukturu:
 | HTTP Status | Situace |
 |---|---|
 | `404 Not Found` | Požadovaná data neexistují (není nasynchronizováno) |
+| `503 Service Unavailable` | Externí API (aWATTar nebo Frankfurter) není dostupné při manuálním syncu |
 | `500 Internal Server Error` | Neočekávaná chyba na straně serveru |
 
 ---

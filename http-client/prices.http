@@ -1,0 +1,35 @@
+### Aktuální cena (aktuální hodina)
+# Vrátí cenu platnou pro právě probíhající hodinu.
+# Pokud databáze neobsahuje data, vrátí 404.
+GET {{baseUrl}}/api/prices/current
+
+###
+
+### Denní statistiky (minimum a maximum za dnešní den)
+# Hranice dne jsou počítány v časové zóně Europe/Prague.
+GET {{baseUrl}}/api/prices/today-stats
+
+###
+
+### Historie za posledních 24 hodin (výchozí chování)
+GET {{baseUrl}}/api/prices/history
+
+###
+
+### Historie za konkrétní den
+GET {{baseUrl}}/api/prices/history?startDate=2026-03-14&endDate=2026-03-14
+
+###
+
+### Historie od konkrétního data do dnes
+GET {{baseUrl}}/api/prices/history?startDate=2026-03-10
+
+###
+
+### Historie do konkrétního data (od předchozího dne)
+GET {{baseUrl}}/api/prices/history?endDate=2026-03-14
+
+###
+
+### Historie za delší rozsah (např. celý týden)
+GET {{baseUrl}}/api/prices/history?startDate=2026-03-08&endDate=2026-03-14

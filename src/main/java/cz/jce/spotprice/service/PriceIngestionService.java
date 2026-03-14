@@ -1,6 +1,7 @@
 package cz.jce.spotprice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cz.jce.spotprice.dto.api.SyncResultDto;
 import cz.jce.spotprice.dto.awattar.AwattarDataPoint;
 import cz.jce.spotprice.dto.awattar.AwattarResponse;
 import cz.jce.spotprice.entity.SpotPrice;
@@ -41,37 +42,63 @@ public class PriceIngestionService {
     @Value("${app.awattar.url}")
     private String awattarUrl;
 
+    /**
+     * Scheduled task – runs according to cron, respects hash deduplication.
+     */
     @Scheduled(cron = "${app.scheduler.cron}")
     public void syncPrices() {
-        log.info("Starting spot price sync");
+        log.info("Starting scheduled spot price sync");
         try {
-            String rawJson = fetchRawJson();
-            String hash = computeSha256(rawJson);
-
-            Optional<SyncLog> latestLog = syncLogRepository.findTopByOrderBySyncTimeDesc();
-            if (latestLog.isPresent() && latestLog.get().getPayloadHash().equals(hash)) {
-                log.info("Payload hash unchanged — skipping sync");
-                return;
-            }
-
-            log.info("New data detected, processing prices");
-            BigDecimal eurToCzk = exchangeRateService.fetchEurToCzk();
-
-            AwattarResponse awattarResponse = objectMapper.readValue(rawJson, AwattarResponse.class);
-            persistPrices(awattarResponse.data(), eurToCzk, hash);
-            log.info("Sync complete — processed {} price records", awattarResponse.data().size());
-
-        } catch (ExchangeRateService.ExchangeRateFetchException e) {
-            log.error("Exchange rate fetch failed, skipping sync cycle: {}", e.getMessage());
-        } catch (RestClientException e) {
-            log.error("Failed to fetch data from aWATTar API: {}", e.getMessage());
+            SyncResultDto result = performSync(false);
+            log.info("Scheduled sync finished: status={}, records={}", result.status(), result.recordsProcessed());
         } catch (Exception e) {
-            log.error("Unexpected error during price sync", e);
+            log.error("Unexpected error during scheduled sync", e);
         }
     }
 
+    /**
+     * Manual trigger – always bypasses hash check and forces a full fetch and persist.
+     *
+     * @return result of the sync operation
+     * @throws RestClientException                        if aWATTar API is unavailable
+     * @throws ExchangeRateService.ExchangeRateFetchException if Frankfurter API is unavailable
+     */
+    public SyncResultDto triggerManualSync() {
+        log.info("Manual sync triggered");
+        return performSync(true);
+    }
+
+    // ── Core logic ────────────────────────────────────────────────────────────
+
+    private SyncResultDto performSync(boolean force) {
+        String rawJson = fetchRawJson();
+        String hash = computeSha256(rawJson);
+
+        if (!force) {
+            Optional<SyncLog> latestLog = syncLogRepository.findTopByOrderBySyncTimeDesc();
+            if (latestLog.isPresent() && latestLog.get().getPayloadHash().equals(hash)) {
+                log.info("Payload hash unchanged — skipping sync");
+                return new SyncResultDto(SyncResultDto.Status.SKIPPED, 0, Instant.now(),
+                        "Data unchanged since last sync");
+            }
+        }
+
+        BigDecimal eurToCzk = exchangeRateService.fetchEurToCzk();
+        AwattarResponse awattarResponse;
+        try {
+            awattarResponse = objectMapper.readValue(rawJson, AwattarResponse.class);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to parse aWATTar response", e);
+        }
+
+        int count = persistPrices(awattarResponse.data(), eurToCzk, hash);
+        log.info("Sync complete — processed {} price records (force={})", count, force);
+        return new SyncResultDto(SyncResultDto.Status.SYNCED, count, Instant.now(),
+                "Successfully synced " + count + " records");
+    }
+
     @Transactional
-    protected void persistPrices(List<AwattarDataPoint> dataPoints, BigDecimal eurToCzk, String hash) {
+    protected int persistPrices(List<AwattarDataPoint> dataPoints, BigDecimal eurToCzk, String hash) {
         syncLogRepository.save(new SyncLog(Instant.now(), hash));
 
         for (AwattarDataPoint point : dataPoints) {
@@ -93,7 +120,11 @@ public class PriceIngestionService {
                     }
             );
         }
+
+        return dataPoints.size();
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String fetchRawJson() {
         log.debug("Fetching raw JSON from aWATTar: {}", awattarUrl);

@@ -1,0 +1,4 @@
+### Vynutit okamžité stažení spotových cen
+# Přeskočí hash deduplication, vždy stáhne a uloží aktuální data z aWATTar API.
+# Použij při prvním spuštění nebo po výpadku scheduleru.
+POST {{baseUrl}}/api/sync
