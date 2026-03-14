@@ -127,9 +127,53 @@ main {
     color: var(--text-secondary);
 }
 
+.period-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.period-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    min-width: 9rem;
+    text-align: center;
+}
+
+.nav-btn {
+    padding: 0.25rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
 .chart-controls {
     display: flex;
+    align-items: center;
     gap: 0.5rem;
+}
+
+.ctrl-sep {
+    width: 1px;
+    height: 1.25rem;
+    background: var(--border);
+    margin: 0 0.125rem;
 }
 
 .toggle-btn {
@@ -197,6 +241,10 @@ main {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+
+    .chart-controls {
+        flex-wrap: wrap;
     }
 
     .card-value {

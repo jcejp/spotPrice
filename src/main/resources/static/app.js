@@ -12,16 +12,97 @@ const fmt = {
 let chart = null;
 let historyData = [];
 let activeCurrency = 'czk';
+let activePeriod = 'day';
+let periodOffset = 0;
+
+// ── Period helpers ─────────────────────────────────────────────────────────────
+
+function pragueToday() {
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Prague' }).format(new Date());
+    return new Date(dateStr + 'T00:00:00');
+}
+
+function formatDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+function getPeriodDates() {
+    const today = pragueToday();
+
+    if (activePeriod === 'day') {
+        const d = new Date(today);
+        d.setDate(d.getDate() + periodOffset);
+        const str = formatDate(d);
+        return { startDate: str, endDate: str };
+    }
+
+    if (activePeriod === 'week') {
+        const d = new Date(today);
+        const dow = d.getDay(); // 0 = Sun
+        const diffToMon = (dow === 0 ? -6 : 1 - dow);
+        d.setDate(d.getDate() + diffToMon + periodOffset * 7);
+        const monday = new Date(d);
+        const sunday = new Date(d);
+        sunday.setDate(sunday.getDate() + 6);
+        return { startDate: formatDate(monday), endDate: formatDate(sunday) };
+    }
+
+    // month
+    const d = new Date(today);
+    d.setMonth(d.getMonth() + periodOffset);
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return { startDate: formatDate(first), endDate: formatDate(last) };
+}
+
+function getPeriodLabel() {
+    const { startDate, endDate } = getPeriodDates();
+
+    if (activePeriod === 'day') {
+        if (periodOffset === 0) return 'Dnes';
+        if (periodOffset === -1) return 'Včera';
+        const d = new Date(startDate + 'T12:00:00');
+        return d.toLocaleDateString(PRAGUE_LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    if (activePeriod === 'week') {
+        const start = new Date(startDate + 'T12:00:00');
+        const end = new Date(endDate + 'T12:00:00');
+        const s = start.toLocaleDateString(PRAGUE_LOCALE, { day: 'numeric', month: 'numeric' });
+        const e = end.toLocaleDateString(PRAGUE_LOCALE, { day: 'numeric', month: 'numeric', year: 'numeric' });
+        return `${s} – ${e}`;
+    }
+
+    // month
+    const d = new Date(startDate + 'T12:00:00');
+    return d.toLocaleDateString(PRAGUE_LOCALE, { month: 'long', year: 'numeric' });
+}
+
+function getChartTimeUnit() {
+    return activePeriod === 'day' ? 'hour' : 'day';
+}
+
+function getDisplayFormats() {
+    if (activePeriod === 'day') return { hour: 'HH:mm' };
+    if (activePeriod === 'week') return { day: 'EEE d.M.' };
+    return { day: 'd.M.' };
+}
 
 // ── Fetching ──────────────────────────────────────────────────────────────────
 
 async function fetchAll() {
     showError(null);
 
+    const { startDate, endDate } = getPeriodDates();
+    const historyUrl = `/api/prices/history?startDate=${startDate}&endDate=${endDate}`;
+
     const [currentResult, statsResult, historyResult] = await Promise.allSettled([
         fetchJson('/api/prices/current'),
         fetchJson('/api/prices/today-stats'),
-        fetchJson('/api/prices/history'),
+        fetchJson(historyUrl),
     ]);
 
     if (currentResult.status === 'fulfilled') {
@@ -52,11 +133,28 @@ async function fetchAll() {
         console.warn('History unavailable:', historyResult.reason);
     }
 
+    updatePeriodUI();
+
     const anyOk = [currentResult, statsResult, historyResult].some(r => r.status === 'fulfilled');
     if (anyOk) {
         document.getElementById('last-updated').textContent =
             'Last updated: ' + new Date().toLocaleTimeString(PRAGUE_LOCALE);
     }
+}
+
+async function fetchHistory() {
+    showError(null);
+    const { startDate, endDate } = getPeriodDates();
+    const url = `/api/prices/history?startDate=${startDate}&endDate=${endDate}`;
+    try {
+        historyData = await fetchJson(url);
+        renderChart(historyData, activeCurrency);
+    } catch (err) {
+        historyData = [];
+        renderChart([], activeCurrency);
+        showError('Price history not available: ' + err.message);
+    }
+    updatePeriodUI();
 }
 
 async function fetchJson(url) {
@@ -90,6 +188,8 @@ function renderChart(data, currency) {
     const values = data.map(d => currency === 'czk' ? d.priceCzk : d.priceEur);
     const label = currency === 'czk' ? 'CZK/MWh' : 'EUR/MWh';
     const color = currency === 'czk' ? '#4f7ef8' : '#43d89c';
+    const unit = getChartTimeUnit();
+    const displayFormats = getDisplayFormats();
 
     if (chart) {
         chart.data.labels = labels;
@@ -98,6 +198,8 @@ function renderChart(data, currency) {
         chart.data.datasets[0].borderColor = color;
         chart.data.datasets[0].backgroundColor = color + '20';
         chart.options.scales.y.title.text = label;
+        chart.options.scales.x.time.unit = unit;
+        chart.options.scales.x.time.displayFormats = displayFormats;
         chart.update();
         return;
     }
@@ -135,7 +237,7 @@ function renderChart(data, currency) {
                                 .toLocaleString(PRAGUE_LOCALE, { timeZone: 'Europe/Prague' });
                         },
                         label(item) {
-                            const row = data[item.dataIndex];
+                            const row = historyData[item.dataIndex];
                             return [
                                 ' CZK: ' + fmt.czk.format(row.priceCzk) + ' CZK/MWh',
                                 ' EUR: ' + fmt.eur.format(row.priceEur) + ' EUR/MWh',
@@ -147,7 +249,7 @@ function renderChart(data, currency) {
             scales: {
                 x: {
                     type: 'time',
-                    time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
+                    time: { unit, displayFormats },
                     ticks: { color: '#8b93b8', maxRotation: 0 },
                     grid: { color: '#2e3248' },
                 },
@@ -158,6 +260,29 @@ function renderChart(data, currency) {
                 },
             },
         },
+    });
+}
+
+// ── Period navigation ──────────────────────────────────────────────────────────
+
+function switchPeriod(period) {
+    if (period === activePeriod) return;
+    activePeriod = period;
+    periodOffset = 0;
+    fetchHistory();
+}
+
+function shiftPeriod(delta) {
+    if (periodOffset + delta > 0) return;
+    periodOffset += delta;
+    fetchHistory();
+}
+
+function updatePeriodUI() {
+    document.getElementById('period-label').textContent = getPeriodLabel();
+    document.getElementById('btn-next').disabled = (periodOffset >= 0);
+    ['day', 'week', 'month'].forEach(p => {
+        document.getElementById('btn-' + p).classList.toggle('active', p === activePeriod);
     });
 }
 
@@ -195,6 +320,7 @@ function showError(msg) {
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    updatePeriodUI();
     fetchAll();
     setInterval(fetchAll, REFRESH_INTERVAL_MS);
 });

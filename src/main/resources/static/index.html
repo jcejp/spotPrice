@@ -36,8 +36,16 @@
 
         <section class="chart-section">
             <div class="chart-header">
-                <h2>Price History (last 24 hours)</h2>
+                <div class="period-nav">
+                    <button id="btn-prev" class="nav-btn" onclick="shiftPeriod(-1)">&#8249;</button>
+                    <span id="period-label" class="period-label">Dnes</span>
+                    <button id="btn-next" class="nav-btn" onclick="shiftPeriod(1)" disabled>&#8250;</button>
+                </div>
                 <div class="chart-controls">
+                    <button id="btn-day" class="toggle-btn active" onclick="switchPeriod('day')">Den</button>
+                    <button id="btn-week" class="toggle-btn" onclick="switchPeriod('week')">Týden</button>
+                    <button id="btn-month" class="toggle-btn" onclick="switchPeriod('month')">Měsíc</button>
+                    <span class="ctrl-sep"></span>
                     <button id="btn-czk" class="toggle-btn active" onclick="switchCurrency('czk')">CZK</button>
                     <button id="btn-eur" class="toggle-btn" onclick="switchCurrency('eur')">EUR</button>
                 </div>
@@ -53,6 +61,6 @@
         </div>
     </main>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=2"></script>
 </body>
 </html>
