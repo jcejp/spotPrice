@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.List;
@@ -127,9 +129,15 @@ public class PriceIngestionService {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String fetchRawJson() {
-        log.debug("Fetching raw JSON from aWATTar: {}", awattarUrl);
+        // Fetch today + tomorrow: day-ahead prices are published ~13:00 CET daily
+        ZoneId zone = ZoneId.of("Europe/Prague");
+        LocalDate today = LocalDate.now(zone);
+        long start = today.atStartOfDay(zone).toInstant().toEpochMilli();
+        long end   = today.plusDays(2).atStartOfDay(zone).toInstant().toEpochMilli();
+
+        log.debug("Fetching aWATTar data: start={}, end={}", start, end);
         String response = restClient.get()
-                .uri(awattarUrl)
+                .uri(awattarUrl + "?start=" + start + "&end=" + end)
                 .retrieve()
                 .body(String.class);
         if (response == null) {

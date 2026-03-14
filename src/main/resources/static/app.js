@@ -17,21 +17,45 @@ let activeCurrency = 'czk';
 
 async function fetchAll() {
     showError(null);
-    try {
-        const [current, stats, history] = await Promise.all([
-            fetchJson('/api/prices/current'),
-            fetchJson('/api/prices/today-stats'),
-            fetchJson('/api/prices/history'),
-        ]);
-        renderCurrent(current);
-        renderStats(stats);
-        historyData = history;
-        renderChart(history, activeCurrency);
+
+    const [currentResult, statsResult, historyResult] = await Promise.allSettled([
+        fetchJson('/api/prices/current'),
+        fetchJson('/api/prices/today-stats'),
+        fetchJson('/api/prices/history'),
+    ]);
+
+    if (currentResult.status === 'fulfilled') {
+        renderCurrent(currentResult.value);
+    } else {
+        showCardUnavailable('card-current', 'current-czk', 'current-eur');
+        console.warn('Current price unavailable:', currentResult.reason);
+    }
+
+    if (statsResult.status === 'fulfilled') {
+        renderStats(statsResult.value);
+    } else {
+        showCardUnavailable('card-min', 'min-czk', 'min-eur');
+        showCardUnavailable('card-max', 'max-czk', 'max-eur');
+        console.warn('Today stats unavailable:', statsResult.reason);
+    }
+
+    if (historyResult.status === 'fulfilled') {
+        historyData = historyResult.value;
+        try {
+            renderChart(historyData, activeCurrency);
+        } catch (err) {
+            showError('Chart render error: ' + err.message);
+            console.error('renderChart failed:', err);
+        }
+    } else {
+        showError('Price history not available yet. Data will appear after the first sync.');
+        console.warn('History unavailable:', historyResult.reason);
+    }
+
+    const anyOk = [currentResult, statsResult, historyResult].some(r => r.status === 'fulfilled');
+    if (anyOk) {
         document.getElementById('last-updated').textContent =
             'Last updated: ' + new Date().toLocaleTimeString(PRAGUE_LOCALE);
-    } catch (err) {
-        showError('Failed to load data. The server may not have prices yet.');
-        console.error(err);
     }
 }
 
@@ -124,7 +148,6 @@ function renderChart(data, currency) {
                 x: {
                     type: 'time',
                     time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } },
-                    adapters: { date: { locale: PRAGUE_LOCALE } },
                     ticks: { color: '#8b93b8', maxRotation: 0 },
                     grid: { color: '#2e3248' },
                 },
@@ -153,6 +176,11 @@ function switchCurrency(currency) {
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
+
+function showCardUnavailable(cardId, primaryId, secondaryId) {
+    document.getElementById(primaryId).textContent = 'N/A';
+    document.getElementById(secondaryId).textContent = 'no data yet';
+}
 
 function showError(msg) {
     const el = document.getElementById('error-msg');
