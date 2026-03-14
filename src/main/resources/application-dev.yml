@@ -1,0 +1,9 @@
+app:
+  scheduler:
+    cron: "0 * * * * *"   # every minute for easy scheduler testing
+
+logging:
+  level:
+    cz.jce.spotprice: DEBUG
+    org.springframework.web.client: DEBUG
+    org.flywaydb: DEBUG

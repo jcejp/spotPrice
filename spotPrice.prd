@@ -1,0 +1,44 @@
+You are an expert Java developer. Your task is to create a complete, runnable Spring Boot application that fetches, stores, and displays spot market energy prices in both EUR and CZK (Czech Koruna).
+
+Please generate all necessary files, including the Maven pom.xml, application properties, Java classes, static frontend files, and a docker-compose.yml for the database.
+
+Here are the technical requirements:
+
+# Tech Stack
+* Backend: Java 21, Spring Boot 3.x, Maven, Spring Data JPA, Spring Web.
+* Database: PostgreSQL (provide a docker-compose.yml to easily start the DB).
+* Frontend: Vanilla HTML, CSS, and JavaScript with Chart.js, served directly from Spring Boot (`src/main/resources/static`).
+
+# Data Sources (External APIs)
+1. Spot Prices: Use the public aWATTar API: `GET https://api.awattar.at/v1/marketdata`. It returns hourly prices in EUR/MWh.
+2. Exchange Rate: Fetch the current EUR to CZK exchange rate using a free public API (e.g., `GET https://api.frankfurter.app/latest?from=EUR&to=CZK` or similar JSON API).
+
+# Database & Entities
+1. `SpotPrice`: Entity to store the price. Fields: `id`, `timestamp` (Instant or ZonedDateTime), `priceEur` (BigDecimal), `priceCzk` (BigDecimal).
+2. `SyncLog`: Entity to store the hash of the downloaded spot price data to prevent unnecessary processing. Fields: `id`, `syncTime`, `payloadHash`.
+
+# Scheduling & Logic (@Scheduled)
+* Create a scheduled task that runs every hour (e.g., cron `0 0 * * * *`).
+* The task fetches data from the aWATTar API.
+* Calculate a SHA-256 hash of the raw JSON response payload from aWATTar.
+* Compare this hash with the latest `payloadHash` in the `SyncLog` table.
+* IF the hash is different (or it's the first run):
+  - Save the new hash to `SyncLog`.
+  - Fetch the current EUR/CZK exchange rate.
+  - Parse the spot price JSON, calculate `priceCzk` (`priceEur` * exchange rate), and save/update the `SpotPrice` records. Ensure no duplicate records for the same hour are created.
+* IF the hash is the same: Do nothing.
+
+# REST API Endpoints (Public)
+The backend must expose a REST API under `/api/prices/`:
+1. `GET /current`: Returns the price for the current hour (both EUR and CZK).
+2. `GET /today-stats`: Returns the daily minimum and daily maximum prices (in both currencies) for the current day.
+3. `GET /history`: Returns a list of prices (both currencies). Support optional query parameters `startDate` and `endDate`. If omitted, return data for the last 24 hours.
+
+# Frontend Requirements
+* Create an `index.html`, `style.css`, and `app.js` in `src/main/resources/static`.
+* Dashboard should display:
+  - Three distinct cards/widgets showing: 1. Current Price, 2. Today's Minimum, 3. Today's Maximum. Display the primary value in CZK and a secondary smaller value in EUR in brackets.
+  - A responsive line chart using Chart.js displaying the history of prices. Include a UI toggle (e.g., a button or dropdown) to switch the chart view between CZK and EUR.
+* The UI should be clean, modern, and simple.
+
+Please provide the complete code structure. Ensure best practices, such as separating concerns (Controller, Service, Repository) and proper error handling.

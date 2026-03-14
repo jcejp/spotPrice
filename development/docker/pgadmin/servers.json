@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "SpotPrice Dev",
+      "Group": "Development",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "spotprice",
+      "Username": "spotprice",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

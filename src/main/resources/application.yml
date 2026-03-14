@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/spotprice
+    username: spotprice
+    password: spotprice
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+app:
+  awattar:
+    url: https://api.awattar.at/v1/marketdata
+  frankfurter:
+    url: https://api.frankfurter.app/latest?from=EUR&to=CZK
+  scheduler:
+    cron: "0 0 * * * *"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

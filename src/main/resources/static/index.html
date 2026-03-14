@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spot Energy Prices</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+</head>
+<body>
+    <header>
+        <h1>Spot Energy Prices</h1>
+        <p class="subtitle">Hourly market prices in EUR/MWh and CZK/MWh</p>
+    </header>
+
+    <main>
+        <section class="cards">
+            <div class="card" id="card-current">
+                <div class="card-label">Current Price</div>
+                <div class="card-value" id="current-czk">—</div>
+                <div class="card-secondary" id="current-eur">—</div>
+                <div class="card-time" id="current-time"></div>
+            </div>
+            <div class="card" id="card-min">
+                <div class="card-label">Today's Minimum</div>
+                <div class="card-value" id="min-czk">—</div>
+                <div class="card-secondary" id="min-eur">—</div>
+            </div>
+            <div class="card" id="card-max">
+                <div class="card-label">Today's Maximum</div>
+                <div class="card-value" id="max-czk">—</div>
+                <div class="card-secondary" id="max-eur">—</div>
+            </div>
+        </section>
+
+        <section class="chart-section">
+            <div class="chart-header">
+                <h2>Price History (last 24 hours)</h2>
+                <div class="chart-controls">
+                    <button id="btn-czk" class="toggle-btn active" onclick="switchCurrency('czk')">CZK</button>
+                    <button id="btn-eur" class="toggle-btn" onclick="switchCurrency('eur')">EUR</button>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </section>
+
+        <div class="status-bar">
+            <span id="last-updated"></span>
+            <span id="error-msg" class="error hidden"></span>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
